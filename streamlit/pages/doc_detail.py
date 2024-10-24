@@ -1,22 +1,43 @@
 import streamlit as st
+import requests
+import base64
+from io import BytesIO
 from PIL import Image
-import os
 
+# Set Streamlit configuration
 st.set_page_config(
     page_title="Document Details",
     initial_sidebar_state="collapsed"
 )
-# # Redirect to login if not logged in
-# if not st.session_state.get('logged_in', False):
-#     st.switch_page("login.py")
+
+API_BASE_URL = "http://localhost:8000"  # Replace with your FastAPI URL if deployed
 
 # Redirect to landing if no image is selected
 if not st.session_state.get('selected_image'):
     st.switch_page("pages/user_landing.py")
 
-def load_local_image(image_name):
-    image_path = os.path.join("D:/DAMG7245/Assignment_3/streamlit/images", image_name)
-    return Image.open(image_path)
+# Function to get image from FastAPI
+def load_image_from_fastapi(image_key):
+    try:
+        response = requests.get(f"{API_BASE_URL}/fetch-image/{image_key}")
+        response.raise_for_status()
+        image_base64 = response.json().get("image_base64")
+        img = Image.open(BytesIO(base64.b64decode(image_base64)))
+        return img
+    except requests.RequestException as e:
+        st.error(f"Error fetching image: {str(e)}")
+        return None
+
+# Function to get image details from FastAPI
+def get_image_details_from_fastapi(image_key):
+    try:
+        response = requests.get(f"{API_BASE_URL}/image-details/{image_key}")
+        response.raise_for_status()
+        details = response.json()
+        return details.get("title"), details.get("brief")
+    except requests.RequestException as e:
+        st.error(f"Error fetching image details: {str(e)}")
+        return "Untitled", "No description available."
 
 def main():
     # Create three columns with specific ratios to push logout to the right
@@ -36,14 +57,12 @@ def main():
     
     # Logout button in right column
     with right_col:
-        # Custom CSS to right-align the button
         st.markdown("""
         <style>
         div[data-testid="column"]:nth-child(3) .stButton {
             display: flex;
             justify-content: flex-end;
         }
-        
         div[data-testid="column"]:nth-child(3) .stButton > button {
             background-color: #dc3545;
             color: white;
@@ -52,7 +71,6 @@ def main():
             border-radius: 4px;
             transition: background-color 0.3s;
         }
-        
         div[data-testid="column"]:nth-child(3) .stButton > button:hover {
             background-color: #c82333;
         }
@@ -65,32 +83,28 @@ def main():
             st.session_state.username = None
             st.switch_page("pages/login.py")
     
+    # Fetch image details from FastAPI
+    title, description = get_image_details_from_fastapi(st.session_state.selected_image)
+    
     # Create two columns for image and details
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # Display the selected image
-        img = load_local_image(st.session_state.selected_image)
-        st.image(img, use_column_width=True)
+        # Fetch and display the selected image from FastAPI
+        img = load_image_from_fastapi(st.session_state.selected_image)
+        if img:
+            st.image(img, use_column_width=True)
 
     with col2:
-        # Display the title and basic info
-        st.title(st.session_state.selected_title)
-        st.write("Category: Sample Category")
-        st.write("Date Added: January 1, 2024")
-        st.write("Resolution: 1920x1080")
-
+        # Display the title and basic info fetched from FastAPI
+        st.title(title)
+        st.write("Category: Sample Category")  # Modify if the category is stored in Snowflake
+        st.write("Date Added: January 1, 2024")  # Modify if the date is available
+        st.write("Resolution: 1920x1080")  # Modify based on the actual data
+    
     # Add summary section below
     st.header("Summary")
-    st.write(st.session_state.selected_description)
-
-    # Additional details section
-    st.header("Additional Information")
-    st.write("""
-    • Feature 1: Description of feature 1
-    • Feature 2: Description of feature 2
-    • Feature 3: Description of feature 3
-    """)
+    st.write(description)
 
 if __name__ == "__main__":
     main()

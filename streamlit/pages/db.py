@@ -1,35 +1,40 @@
-import mysql.connector
-
+import snowflake.connector
+import os
 
 class DBConnection:
     _instance = None
-    
+
     def __init__(self):
         if DBConnection._instance is not None:
-            # Prevent multiple instances
             raise Exception("This class is a singleton!")
-        
-        # Initialize the connection
-        self.connection = mysql.connector.connect(
-            host='database-1.cdwumcckkqqt.us-east-1.rds.amazonaws.com',
-            user='admin',
-            password='amazonrds7245',
-            database='gaia_benchmark_dataset_validation'
+
+        # Initialize the Snowflake connection using environment variables
+        self.connection = snowflake.connector.connect(
+            user=os.getenv('SNOWFLAKE_USER'),
+            password=os.getenv('SNOWFLAKE_PASSWORD'),
+            account=os.getenv('SNOWFLAKE_ACCOUNT'),
+            warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+            database=os.getenv('SNOWFLAKE_DATABASE'),
+            schema=os.getenv('SNOWFLAKE_SCHEMA')
         )
-        self.cursor = self.connection.cursor(buffered=True)  # Create a cursor for the connection
         DBConnection._instance = self
-    
+
     @classmethod
     def get_instance(cls):
-        # Create the singleton instance if it doesn't exist
         if cls._instance is None:
             cls._instance = DBConnection()
         return cls._instance
 
     def get_cursor(self):
-        # Return the cursor object
-        return self.cursor
+        # Create and return a new cursor each time it's called
+        return self.connection.cursor()
 
     def get_connection(self):
         # Return the connection object if needed
         return self.connection
+
+    def close(self):
+        # Close the connection and release resources
+        if self.connection:
+            self.connection.close()
+            DBConnection._instance = None

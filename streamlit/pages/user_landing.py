@@ -1,15 +1,19 @@
-import streamlit as st
-from PIL import Image
 import os
+import streamlit as st
+import requests
+import base64
+from io import BytesIO
+from PIL import Image
 
 st.set_page_config(
-    #page_title="Document Details",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+API_BASE_URL = "http://localhost:8000"  # Your FastAPI base URL
+
 # Display welcome message
-if "username" in st.session_state and st.session_state.user_type == "user":
+if "username" in st.session_state:
     st.header(f"Welcome {st.session_state.username}!")
 
 # Custom CSS for slide-out info card with button
@@ -98,10 +102,35 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def load_local_image(image_name):
-    image_path = os.path.join("D:/DAMG7245/Assignment_3/streamlit/images", image_name)
-    return Image.open(image_path)
+# Function to get image from FastAPI
+def load_image_from_fastapi(image_key):
+    try:
+        print(f"Requesting image with key: {image_key}")  # Debugging log
+        response = requests.get(f"{API_BASE_URL}/fetch-image/{image_key}")
+        print(f"Response status: {response.status_code}")  # Log the response status
+        print(f"Response content: {response.text}")
+        response.raise_for_status()
+        image_base64 = response.json().get("image_base64")
+        img = Image.open(BytesIO(base64.b64decode(image_base64)))
+        return img
+    except requests.RequestException as e:
+        st.error(f"Error fetching image: {str(e)}")
+        return None
 
+
+# Function to get image details from FastAPI
+def get_image_details_from_fastapi(image_key):
+    try:
+        print(f"Requesting details for image key: {image_key}")
+        response = requests.get(f"{API_BASE_URL}/image-details/{image_key}")
+        response.raise_for_status()
+        details = response.json()
+        return details.get("title"), details.get("brief")
+    except requests.RequestException as e:
+        st.error(f"Error fetching image details: {str(e)}")
+        return "Untitled", "No description available."
+
+# Function to create the image with information
 def create_image_with_info(image_base64, title, description):
     return f"""
     <div class="image-container">
@@ -114,55 +143,53 @@ def create_image_with_info(image_base64, title, description):
     </div>
     """
 
-def image_to_base64(image):
-    import base64
-    from io import BytesIO
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
-
+# Handle button click
 def handle_click(image_file, title, description):
     st.session_state.selected_image = image_file
     st.session_state.selected_title = title
     st.session_state.selected_description = description
     st.switch_page("pages/doc_detail.py")
 
-def create_image_grid(image_folder, num_images_per_row=5):
-    image_files = sorted([f for f in os.listdir(image_folder) if f.endswith(('.png', '.jpg', '.jpeg'))])
-    
-    titles = [f"Image {i + 1}" for i in range(len(image_files))]
-    descriptions = [
-        f"Brief summary for image {i + 1}. Key features and highlights shown here."
-        for i in range(len(image_files))
-    ]
+# Function to create the image grid from FastAPI
+def create_image_grid(num_images_per_row=5):
+    try:
+        response = requests.get(f"{API_BASE_URL}/list-images")
+        response.raise_for_status()
+        image_files = response.json()
 
-    for i in range(0, len(image_files), num_images_per_row):
-        cols = st.columns(num_images_per_row)
-        for j, image_file in enumerate(image_files[i:i + num_images_per_row]):
-            with cols[j]:
-                img = load_local_image(image_file)
-                img_base64 = image_to_base64(img)
-                
-                # Create unique index for each image
-                image_index = i + j
-                
-                # Display the image container
-                st.markdown(
-                    create_image_with_info(
-                        img_base64,
-                        titles[image_index],
-                        descriptions[image_index].replace('\n', '<br>')
-                    ),
-                    unsafe_allow_html=True
-                )
-                
-                # Add the view details button using Streamlit's native button
-                if st.button("View Details", key=f"btn_{image_index}"):
-                    handle_click(
-                        image_file,
-                        titles[image_index],
-                        descriptions[image_index]
-                    )
+        for i in range(0, len(image_files), num_images_per_row):
+            cols = st.columns(num_images_per_row)
+            for j, image_file in enumerate(image_files[i:i + num_images_per_row]):
+                with cols[j]:
+                    # Fetch image from FastAPI
+                    img = load_image_from_fastapi(image_file)
+                    if img:
+                        img_base64 = image_to_base64(img)
+                        # Fetch title and description from FastAPI
+                        title, description = get_image_details_from_fastapi(image_file)
+                        st.markdown(
+                            create_image_with_info(
+                                img_base64,
+                                title,
+                                description.replace('\n', '<br>')
+                            ),
+                            unsafe_allow_html=True
+                        )
+                        if st.button("View Details", key=f"btn_{image_file}"):
+                            handle_click(image_file, title, description)
+    except requests.RequestException as e:
+        st.error(f"Error fetching image list: {str(e)}")
+        
+# Function to convert an image to base64
+def image_to_base64(image):
+    try:
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")  # Save the image to the buffer in PNG format
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")  # Encode the image to base64
+    except Exception as e:
+        st.error(f"Error converting image to base64: {str(e)}")
+        return None
+
 
 # Initialize session state variables if they don't exist
 if 'selected_image' not in st.session_state:
@@ -172,6 +199,6 @@ if 'selected_title' not in st.session_state:
 if 'selected_description' not in st.session_state:
     st.session_state.selected_description = None
 
-# Call the function to create the grid
-image_folder = "D:/DAMG7245/Assignment_3/streamlit/images"
-create_image_grid(image_folder)
+
+# Call the function to create the grid from FastAPI
+create_image_grid()

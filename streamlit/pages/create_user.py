@@ -1,41 +1,26 @@
 import streamlit as st
-import mysql.connector
-import bcrypt  # Import bcrypt for password hashing
+import requests  # To send API requests
 
-# Connect to the AWS RDS MySQL instance
-def create_connection():
-    connection = mysql.connector.connect(
-        host='database-1.cdwumcckkqqt.us-east-1.rds.amazonaws.com',
-        user='admin',
-        password='amazonrds7245',
-        database='gaia_benchmark_dataset_validation'
-    )
-    return connection
-
-# Function to create a new user
+# Function to send API request to create a new user
 def create_new_user(first_name, last_name, username, password):
-    connection = create_connection()
-    cursor = connection.cursor()
+    api_url = "http://localhost:8000/create_user/"  # FastAPI endpoint
 
-    # Hash the password before storing it
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    # Payload with user data
+    payload = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "password": password
+    }
 
-    # User type is always set to "user"
-    user_type = "user"
+    # Send POST request to FastAPI
+    response = requests.post(api_url, json=payload)
 
-    # Insert new user into the 'login' table
-    query = """
-    INSERT INTO login (fname, lname, username, password, user_type)
-    VALUES (%s, %s, %s, %s, %s)
-    """
-    cursor.execute(query, (first_name, last_name, username, hashed_password.decode('utf-8'), user_type))
-    
-    # Commit the transaction and close the connection
-    connection.commit()
-    cursor.close()
-    connection.close()
-
-    return True
+    # Check the response from FastAPI
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception(response.json().get("detail", "Unknown error"))
 
 # Function for the create new user page
 def create_account_page():
@@ -47,19 +32,16 @@ def create_account_page():
     username = st.text_input("Username", placeholder="example@mail.com")
     password = st.text_input("Password", type="password")
 
+    col1, col2 = st.columns(2)
 
-    col1,col2 = st.columns(2)
     # Handle account creation
-
     with col1:
-    # Submit button
         submit_button = st.button("Create Account")
-        
         if submit_button:
             if first_name and last_name and username and password:
                 try:
-                    create_new_user(first_name, last_name, username, password)
-                    st.success(f"Account created for {first_name} {last_name} ({username}) as a User!")
+                    response = create_new_user(first_name, last_name, username, password)
+                    st.success(f"Account created for {first_name} {last_name} ({username})!")
                 except Exception as e:
                     st.error(f"Error: {e}")
             else:
@@ -67,7 +49,7 @@ def create_account_page():
     
     with col2:
         if st.button("Back to Login"):
-            st.switch_page("pages/login.py")
- 
+            st.switch_page("pages/login.py")  # Placeholder for page navigation
+
 if __name__ == "__main__":
     create_account_page()

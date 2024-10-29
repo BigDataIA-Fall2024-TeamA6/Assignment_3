@@ -14,8 +14,8 @@ chrome_options.add_argument("--headless")  # Run in headless mode
 chrome_options.add_argument("--log-level=3")
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-# Base URL of the page you want to scrape (add pagination using &first=)
-base_url = 'https://rpc.cfainstitute.org/en/research-foundation/publications#sort=%40officialz32xdate%20descending&f:SeriesContent=[Research%20Foundation]'
+base_url = 'https://rpc.cfainstitute.org/en/research-foundation/publications#'
+url_params = 'sort=%40officialz32xdate%20descending&f:SeriesContent=[Research%20Foundation]'
 image_url = 'https://png.pngtree.com/png-clipart/20220612/original/pngtree-pdf-file-icon-png-png-image_7965915.png'   
         
 def get_pdf_title(row):
@@ -90,11 +90,11 @@ def scrape_single_page(page_url):
 def scrape_pages(num_pages):
     all_data = []
     for page_num in range(0, num_pages * 10,10):
-        page_url = f"{base_url}&first={page_num}"
+        page_url = f"{base_url}&first={page_num}&{url_params}"
         page_data = scrape_single_page(page_url)
         all_data.extend(page_data)
         print(f" Page {page_num}  updated")
-        time.sleep(2)   
+        time.sleep(10)   
           
     return all_data
 

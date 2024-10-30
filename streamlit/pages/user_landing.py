@@ -147,7 +147,7 @@ def create_image_with_info(image_base64, title, description):
 # Function to query NVIDIA API for summary
 def get_nvidia_summary(title, description):
     NVIDIA_API_URL = "https://ai.api.nvidia.com/v1/vlm/nvidia/neva-22b"  # Replace with your actual endpoint
-    NVIDIA_API_KEY = "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"  # Replace with your actual API key
+    NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")  # Replace with your actual API key
 
     headers = {
         "Authorization": f"Bearer {NVIDIA_API_KEY}",

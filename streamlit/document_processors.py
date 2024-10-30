@@ -1,14 +1,11 @@
 import os
 import fitz
-from pptx import Presentation
 import subprocess
 from llama_index.core import Document
 from utils import (
-    describe_image, is_graph, process_graph, extract_text_around_item, 
-    process_text_blocks, save_uploaded_file
+    is_graph, process_graph, extract_text_around_item, 
+    process_text_blocks
 )
-def create_ve():
-    print("Hello world")
 
 def get_pdf_documents(pdf_file):
     """Process a PDF file and extract 
@@ -17,7 +14,7 @@ def get_pdf_documents(pdf_file):
     ongoing_tables = {}
 
     try:
-        f = fitz.open(stream=pdf_file.read(), filetype="pdf")
+        f = fitz.open(pdf_file)
     except Exception as e:
         print(f"Error opening or processing the PDF file: {e}")
         return []
@@ -137,35 +134,6 @@ def parse_all_images(filename, page, pagenum, text_blocks):
         image_docs.append(Document(text="This is an image with the caption: " + caption, metadata=image_metadata))
     return image_docs
 
-def process_ppt_file(ppt_path):
-    """Process a PowerPoint file."""
-    pdf_path = convert_ppt_to_pdf(ppt_path)
-    images_data = convert_pdf_to_images(pdf_path)
-    slide_texts = extract_text_and_notes_from_ppt(ppt_path)
-    processed_data = []
-
-    for (image_path, page_num), (slide_text, notes) in zip(images_data, slide_texts):
-        if notes:
-            notes = "\n\nThe speaker notes for this slide are: " + notes
-        
-        with open(image_path, 'rb') as image_file:
-            image_content = image_file.read()
-        
-        image_description = " "
-        if is_graph(image_content):
-            image_description = process_graph(image_content)
-        
-        image_metadata = {
-            "source": f"{os.path.basename(ppt_path)}",
-            "image": image_path,
-            "caption": slide_text + image_description + notes,
-            "type": "image",
-            "page_num": page_num
-        }
-        processed_data.append(Document(text="This is a slide with the text: " + slide_text + image_description, metadata=image_metadata))
-
-    return processed_data
-
 def convert_ppt_to_pdf(ppt_path):
     """Convert a PowerPoint file to PDF using LibreOffice."""
     base_name = os.path.basename(ppt_path)
@@ -195,78 +163,10 @@ def convert_pdf_to_images(pdf_path):
     doc.close()
     return image_paths
 
-def extract_text_and_notes_from_ppt(ppt_path):
-    """Extract text and notes from a PowerPoint file."""
-    prs = Presentation(ppt_path)
-    text_and_notes = []
-    for slide in prs.slides:
-        slide_text = ' '.join([shape.text for shape in slide.shapes if hasattr(shape, "text")])
-        try:
-            notes = slide.notes_slide.notes_text_frame.text if slide.notes_slide else ''
-        except:
-            notes = ''
-        text_and_notes.append((slide_text, notes))
-    return text_and_notes
 
-def load_multimodal_data(files):
-    """Load and process multiple file types."""
+def load_multimodal_data(pdf_fp):
     documents = []
-    for file in files:
-        file_extension = os.path.splitext(file.lower())[1]
-        if file_extension in ('.png', '.jpg', '.jpeg'):
-            image_content = file.read()
-            image_text = describe_image(image_content)
-            doc = Document(text=image_text, metadata={"source": file.name, "type": "image"})
-            documents.append(doc)
-        elif file_extension == '.pdf':
-            try:
-                pdf_documents = get_pdf_documents(file)
-                documents.extend(pdf_documents)
-            except Exception as e:
-                print(f"Error processing PDF {file.name}: {e}")
-        elif file_extension in ('.ppt', '.pptx'):
-            try:
-                ppt_documents = process_ppt_file(save_uploaded_file(file))
-                documents.extend(ppt_documents)
-            except Exception as e:
-                print(f"Error processing PPT {file.name}: {e}")
-        else:
-            text = file.read().decode("utf-8")
-            doc = Document(text=text, metadata={"source": file.name, "type": "text"})
-            documents.append(doc)
-    return documents
-
-def load_data_from_directory(directory):
-    """Load and process multiple file types from a directory."""
-    documents = []
-    for filename in os.listdir(directory):
-        filepath = os.path.join(directory, filename)
-        file_extension = os.path.splitext(filename.lower())[1]
-        print(filename)
-        if file_extension in ('.png', '.jpg', '.jpeg'):
-            with open(filepath, "rb") as image_file:
-                image_content = image_file.read()
-            image_text = describe_image(image_content)
-            doc = Document(text=image_text, metadata={"source": filename, "type": "image"})
-            print(doc)
-            documents.append(doc)
-        elif file_extension == '.pdf':
-            with open(filepath, "rb") as pdf_file:
-                try:
-                    pdf_documents = get_pdf_documents(pdf_file)
-                    documents.extend(pdf_documents)
-                except Exception as e:
-                    print(f"Error processing PDF {filename}: {e}")
-        elif file_extension in ('.ppt', '.pptx'):
-            try:
-                ppt_documents = process_ppt_file(filepath)
-                documents.extend(ppt_documents)
-                print(ppt_documents)
-            except Exception as e:
-                print(f"Error processing PPT {filename}: {e}")
-        else:
-            with open(filepath, "r", encoding="utf-8") as text_file:
-                text = text_file.read()
-            doc = Document(text=text, metadata={"source": filename, "type": "text"})
-            documents.append(doc)
+    with open(pdf_fp,"rb") as pdf_file:
+        pdf_documents = get_pdf_documents(pdf_file)
+        documents.extend(pdf_documents)
     return documents

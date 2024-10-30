@@ -10,7 +10,7 @@ from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.embeddings.nvidia import NVIDIAEmbedding
 from llama_index.llms.nvidia import NVIDIA
 
-from document_processors import load_multimodal_data, load_data_from_directory
+from document_processors import load_multimodal_data
 from utils import set_environment_variables
 
 from dotenv import load_dotenv
@@ -101,7 +101,7 @@ def main():
                 pdf_path = download_pdf(pdf_link)
                 if pdf_path:
                     # Load document data directly from the downloaded file
-                    documents = load_multimodal_data([pdf_path])  # Update this function if necessary
+                    documents = load_multimodal_data(pdf_path)  # Update this function if necessary
                     st.session_state['index'] = create_index(documents)
                     st.session_state['history'] = []
                     st.success("Document fetched and index created!")
@@ -114,29 +114,6 @@ def main():
             except Exception as e:
                 st.error(f"Error fetching document: {e}")
 
-        # st.title("Multimodal RAG")
-        
-        # input_method = st.radio("Choose input method:", ("Upload Files", "Enter Directory Path"))
-        
-        # if input_method == "Upload Files":
-        #     uploaded_files = st.file_uploader("Drag and drop files here", accept_multiple_files=True)
-        #     if uploaded_files and st.button("Process Files"):
-        #         with st.spinner("Processing files..."):
-        #             documents = load_multimodal_data(uploaded_files)
-        #             st.session_state['index'] = create_index(documents)
-        #             st.session_state['history'] = []
-        #             st.success("Files processed and index created!")
-        # else:
-        #     directory_path = st.text_input("Enter directory path:")
-        #     if directory_path and st.button("Process Directory"):
-        #         if os.path.isdir(directory_path):
-        #             with st.spinner("Processing directory..."):
-        #                 documents = load_data_from_directory(directory_path)
-        #                 st.session_state['index'] = create_index(documents)
-        #                 st.session_state['history'] = []
-        #                 st.success("Directory processed and index created!")
-        #         else:
-        #             st.error("Invalid directory path. Please enter a valid path.")
     
     with col2:
         if 'index' in st.session_state:

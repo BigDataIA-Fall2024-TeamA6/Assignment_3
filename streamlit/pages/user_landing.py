@@ -12,6 +12,7 @@ st.set_page_config(
 
 API_BASE_URL = "http://localhost:8000"  # Your FastAPI base URL
 
+
 # Display welcome message
 if "username" in st.session_state:
     st.header(f"Welcome {st.session_state.username}!")
@@ -143,11 +144,57 @@ def create_image_with_info(image_base64, title, description):
     </div>
     """
 
-# Handle button click
+# Function to query NVIDIA API for summary
+def get_nvidia_summary(title, description):
+    NVIDIA_API_URL = "https://ai.api.nvidia.com/v1/vlm/nvidia/neva-22b"  # Replace with your actual endpoint
+    NVIDIA_API_KEY = "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"  # Replace with your actual API key
+
+    headers = {
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": f'Write a 5 line summary for the following title and summary: Title: {title}. Summary: {description}'
+            }
+        ],
+        "max_tokens": 1024,
+        "temperature": 0.20,
+        "top_p": 0.70,
+        "seed": 0,
+        "stream": False
+    }
+
+    try:
+        response = requests.post(NVIDIA_API_URL, json=payload, headers=headers)
+        response.raise_for_status()
+        json_response = response.json()
+        
+        # Extract the summary from the response
+        summary_content = json_response['choices'][0]['message']['content']
+        return summary_content 
+        
+    except requests.RequestException as e:
+        st.error(f"Error fetching summary from NVIDIA API: {str(e)}")
+        return "Error retrieving summary."
+
+# Updated handle button click function
 def handle_click(image_file, title, description):
     st.session_state.selected_image = image_file
     st.session_state.selected_title = title
     st.session_state.selected_description = description
+    
+    # Fetch NVIDIA summary
+    nvidia_summary = get_nvidia_summary(title, description)
+
+    # Store NVIDIA summary in session state or display it directly
+    st.session_state.nvidia_summary = nvidia_summary
+    # st.session_state.selected_nvidia_summary = nvidia_summary
+
+    # Optionally, switch to another page or display the details directly
+    st.write("NVIDIA Summary:", nvidia_summary)  # Display the summary on the current page
     st.switch_page("pages/doc_detail.py")
 
 # Function to create the image grid from FastAPI

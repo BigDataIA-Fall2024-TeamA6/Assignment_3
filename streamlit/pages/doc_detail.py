@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-API_BASE_URL = "http://localhost:8000"  # Replace with your FastAPI URL if deployed
+API_BASE_URL = "http://localhost:8000"
 
 # Redirect to landing if no image is selected
 if not st.session_state.get('selected_image'):
@@ -28,16 +28,21 @@ def load_image_from_fastapi(image_key):
         st.error(f"Error fetching image: {str(e)}")
         return None
 
-# Function to get image details from FastAPI
+# Updated function to get image details from FastAPI
 def get_image_details_from_fastapi(image_key):
     try:
         response = requests.get(f"{API_BASE_URL}/image-details/{image_key}")
         response.raise_for_status()
-        details = response.json()
-        return details.get("title"), details.get("brief")
+        return response.json()
     except requests.RequestException as e:
         st.error(f"Error fetching image details: {str(e)}")
-        return "Untitled", "No description available."
+        return {
+            "title": "Untitled",
+            "pdf_summary": "No summary available.",
+            "nvidia_summary": "",
+            "image_link": "",
+            "pdf_link": ""
+        }
 
 def main():
     # Create three columns with specific ratios to push logout to the right
@@ -47,8 +52,7 @@ def main():
     with left_col:
         if st.button("← Back to Gallery"):
             st.session_state.selected_image = None
-            st.session_state.selected_title = None
-            st.session_state.selected_description = None
+            st.session_state.selected_details = None
             st.switch_page("pages/user_landing.py")
     
     # Empty middle column to create space
@@ -77,14 +81,10 @@ def main():
         </style>
         """, unsafe_allow_html=True)
         
-        if st.button("Logout"):
-            st.session_state.logged_in = False
-            st.session_state.user_type = None
-            st.session_state.username = None
-            st.switch_page("pages/login.py")
+        # 
     
     # Fetch image details from FastAPI
-    title, description = get_image_details_from_fastapi(st.session_state.selected_image)
+    details = get_image_details_from_fastapi(st.session_state.selected_image)
     
     # Create two columns for image and details
     col1, col2 = st.columns([1, 1])
@@ -96,15 +96,50 @@ def main():
             st.image(img, use_column_width=True)
 
     with col2:
-        # Display the title and basic info fetched from FastAPI
-        st.title(title)
-        st.write("Category: Sample Category")  # Modify if the category is stored in Snowflake
-        st.write("Date Added: January 1, 2024")  # Modify if the date is available
-        st.write("Resolution: 1920x1080")  # Modify based on the actual data
+        # Display the title and details
+        st.title(details.get('title', 'Untitled'))
+        
+        # Display PDF link if available
+        if details.get('pdf_link'):
+            st.markdown(f"[View PDF Document]({details['pdf_link']})")
+        
+        # Add "Ask me a Question" button with custom styling
+        st.markdown("""
+            <style>
+            .stButton > button {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                border: none;
+                font-weight: bold;
+                margin-top: 20px;
+            }
+            .stButton > button:hover {
+                background-color: #45a049;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        if st.button("Ask me a Question"):
+            st.session_state.current_document = st.session_state.selected_image
+            image_name = st.session_state.selected_image
+            # # Define the base URL and the PDF key
+            # base_url = "https://bdia-assignment-3.s3.us-east-1.amazonaws.com/bdia-assignment-3/"
+            # pdf_key = "beyond-active-and-passive"
+
+            # # Concatenate the strings to form the complete PDF link
+            # pdf_link = base_url + pdf_key + ".pdf"
+            # st.write(pdf_link)
+            st.switch_page("pages/qa_interface.py")
+
+    # Add summaries section below
+    st.header("PDF Summary")
+    st.write(st.session_state.get('nvidia_summary'))
     
-    # Add summary section below
-    st.header("Summary")
-    st.write(description)
+    # if details.get('nvidia_summary'):
+    #     st.header("NVIDIA Summary")
+    #     st.write(st.session_state.get('nvidia_summary'))
 
 if __name__ == "__main__":
     main()

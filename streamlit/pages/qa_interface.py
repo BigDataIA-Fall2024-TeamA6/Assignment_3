@@ -19,6 +19,11 @@ from pymilvus import connections
 # # Load environment variables from .env file
 load_dotenv()
 
+st.set_page_config(
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 # # Connect to Zilliz Cloud
 # connections.connect(
 #     uri=os.getenv("ZILLIZ_CLOUD_URI"),
@@ -32,8 +37,8 @@ st.set_page_config(layout="wide")
 # Initialize settings
 def initialize_settings():
     Settings.embed_model = NVIDIAEmbedding(model="nvidia/nv-embedqa-e5-v5", truncate="END")
-    Settings.llm = NVIDIA(model="meta/llama-3.1-70b-instruct")
-    Settings.text_splitter = SentenceSplitter(chunk_size=600)
+    Settings.llm = NVIDIA(model="meta/llama-3.1-405b-instruct")
+    Settings.text_splitter = SentenceSplitter(chunk_size=1000)
 
 # Create index from documents
 def create_index(documents):

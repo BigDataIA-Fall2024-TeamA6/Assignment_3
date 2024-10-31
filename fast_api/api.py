@@ -53,7 +53,7 @@ def get_db_connection():
 class ImageMetadata(BaseModel):
     title: str
     brief: str
-    image_key: str
+    pdf_key: str
 
 
 # Pydantic model for user creation
@@ -126,23 +126,23 @@ async def login(user: UserLogin):
 
 
 # API to fetch image metadata from Snowflake
-@app.get("/image-details/{image_key:path}")
-async def get_image_details(image_key: str):
+@app.get("/image-details/{pdf_key:path}")
+async def get_image_details(pdf_key: str):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Remove the file extension from image_key to query Snowflake
-        base_name = image_key.split('/')[-1].rsplit('.', 1)[0]
+        # Remove the file extension from pdf_key to query Snowflake
+        base_name = pdf_key.split('/')[-1].rsplit('.', 1)[0]
 
         # Query the Snowflake database to retrieve title and brief
-        query = "SELECT title, brief FROM test WHERE image_key = %s"
+        query = "SELECT title, pdf_summary FROM research_foundation WHERE pdf_key = %s"
         cursor.execute(query, (base_name,))
         result = cursor.fetchone()
 
         if result:
             title, brief = result
-            return {"title": title, "brief": brief}
+            return {"title": title, "pdf_summary": brief}
         else:
             raise HTTPException(status_code=404, detail="Image details not found")
 
@@ -154,11 +154,11 @@ async def get_image_details(image_key: str):
         conn.close()
 
 # API to fetch image data from S3 and return as base64
-@app.get("/fetch-image/{image_key:path}")
-async def fetch_image(image_key: str):
+@app.get("/fetch-image/{pdf_key:path}")
+async def fetch_image(pdf_key: str):
     s3 = get_s3_client()
     try:
-        image_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=image_key)
+        image_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=pdf_key)
         image_data = image_object['Body'].read()
 
         # Convert image data to base64
@@ -170,7 +170,7 @@ async def fetch_image(image_key: str):
         return {"image_base64": img_base64}
     
     except s3.exceptions.NoSuchKey:
-        raise HTTPException(status_code=404, detail=f"Image {image_key} not found in S3.")
+        raise HTTPException(status_code=404, detail=f"Image {pdf_key} not found in S3.")
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching image from S3: {str(e)}")
@@ -180,7 +180,7 @@ async def fetch_image(image_key: str):
 async def list_images():
     s3 = get_s3_client()
     try:
-        response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="test/")
+        response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="Research-Foundation/")
         if 'Contents' not in response:
             raise HTTPException(status_code=404, detail="No images found in S3 bucket")
 

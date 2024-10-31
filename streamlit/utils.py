@@ -27,7 +27,7 @@ def is_graph(image_content):
 def process_graph(image_content):
     """Process a graph image and generate a description."""
     deplot_description = process_graph_deplot(image_content)
-    mixtral = NVIDIA(model_name="meta/llama-3.1-70b-instruct")
+    mixtral = NVIDIA(model_name="meta/llama-3.1-405b-instruct")
     response = mixtral.complete("Your responsibility is to explain charts. You are an expert in describing the responses of linearized tables into plain English text for LLMs to use. Explain the following linearized table. " + deplot_description)
     return response.text
 

@@ -5,7 +5,6 @@ import boto3
 from io import BytesIO
 from PIL import Image
 import base64
-import bcrypt
 import os
 from dotenv import load_dotenv
 
@@ -54,75 +53,6 @@ class ImageMetadata(BaseModel):
     title: str
     brief: str
     pdf_key: str
-
-
-# Pydantic model for user creation
-class UserCreate(BaseModel):
-    first_name: str
-    last_name: str
-    username: str
-    password: str
-
-# Pydantic model for user login
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-# API to create a new user
-@app.post("/create_user/")
-async def create_user(user: UserCreate):
-    connection = get_db_connection()
-    cursor = connection.cursor()
-
-    # Hash the password before storing it in the database
-    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-    try:
-        # Insert new user into the 'USER_TEST' table
-        query = """
-        INSERT INTO USER_TEST (FIRSTNAME, LASTNAME, USERNAME, PASSWORD)
-        VALUES (%s, %s, %s, %s)
-        """
-        cursor.execute(query, (user.first_name, user.last_name, user.username, hashed_password))
-        connection.commit()
-
-        return {"message": "User created successfully"}
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
-    
-    finally:
-        cursor.close()
-        connection.close()
-
-
-@app.post("/login/")
-async def login(user: UserLogin):
-    connection = get_db_connection()
-    cursor = connection.cursor()
-
-    try:
-        # Check if the username exists in the database
-        query = "SELECT username, password FROM USER_TEST WHERE username = %s"
-        cursor.execute(query, (user.username,))
-        result = cursor.fetchone()
-
-        if result:
-            db_username, db_password = result
-            # Verify the hashed password
-            if bcrypt.checkpw(user.password.encode('utf-8'), db_password.encode('utf-8')):
-                return {"message": "Login successful", "username": db_username}
-            else:
-                raise HTTPException(status_code=401, detail="Invalid password")
-        else:
-            raise HTTPException(status_code=404, detail="Username not found")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during login: {str(e)}")
-    
-    finally:
-        cursor.close()
-        connection.close()
 
 
 # API to fetch image metadata from Snowflake

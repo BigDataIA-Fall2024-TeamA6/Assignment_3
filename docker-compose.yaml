@@ -1,0 +1,211 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+
+x-airflow-common:
+  &airflow-common
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.2}
+  build: .
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    _PIP_ADDITIONAL_REQUIREMENTS: ""
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    &airflow-common-depends-on
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
+  selenium:
+    image: seleniarm/standalone-chromium:latest
+    container_name: selenium_remote
+    ports:
+      - "4444:4444"
+    restart: always
+    shm_size: 2gb
+
+  redis:
+    image: redis:7.2-bookworm
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    restart: always
+
+  # airflow-webserver:
+  #   <<: *airflow-common
+  #   command: webserver
+  #   env_file:
+  #     - .env 
+  #   ports:
+  #     - "8080:8080"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     <<: *airflow-common-depends-on
+  #     airflow-init:
+  #       condition: service_completed_successfully
+
+  # airflow-scheduler:
+  #   <<: *airflow-common
+  #   command: scheduler
+  #   healthcheck:
+  #     test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     <<: *airflow-common-depends-on
+  #     airflow-init:
+  #       condition: service_completed_successfully
+
+  # airflow-worker:
+  #   <<: *airflow-common
+  #   command: celery worker
+  #   healthcheck:
+  #     test:
+  #       - "CMD-SHELL"
+  #       - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   environment:
+  #     <<: *airflow-common-env
+  #     DUMB_INIT_SETSID: "0"
+  #   restart: always
+  #   depends_on:
+  #     <<: *airflow-common-depends-on
+  #     airflow-init:
+  #       condition: service_completed_successfully
+
+  # # airflow-triggerer:
+  #   <<: *airflow-common
+  #   command: triggerer
+  #   healthcheck:
+  #     test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: always
+  #   depends_on:
+  #     <<: *airflow-common-depends-on
+  #     airflow-init:
+  #       condition: service_completed_successfully
+
+  # airflow-init:
+  #   <<: *airflow-common
+  #   command:
+  #     - /bin/bash
+  #     - -c
+  #     - |
+  #       if [[ -z "${AIRFLOW_UID}" ]]; then
+  #         echo "WARNING!!!: AIRFLOW_UID not set!"
+  #         echo "Please set AIRFLOW_UID environment variable."
+  #       fi
+  #       mkdir -p /sources/logs /sources/dags /sources/plugins
+  #       chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+  #       exec /entrypoint airflow version
+  #   environment:
+  #     <<: *airflow-common-env
+  #     _AIRFLOW_DB_MIGRATE: 'true'
+  #     _AIRFLOW_WWW_USER_CREATE: 'true'
+  #     _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
+  #     _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+  #   user: "0:0"
+  #   volumes:
+  #     - ${AIRFLOW_PROJ_DIR:-.}:/sources
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: ./fast_api/Dockerfile
+    environment:
+      - ENVIRONMENT=development
+    depends_on:
+      - postgres
+    volumes:
+      - ./:/app  # Mount the root directory to /app
+    command: poetry run uvicorn fast_api.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: always
+
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: ./streamlit/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./:/app  # Mount the root directory to /app
+    environment:
+      - ENVIRONMENT=development
+    depends_on:
+      - fastapi
+    command: poetry run streamlit run streamlit/app.py
+    restart: always
+
+volumes:
+  postgres-db-volume:

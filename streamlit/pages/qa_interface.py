@@ -47,7 +47,7 @@ def create_index(documents):
 def download_pdf(url):
     response = requests.get(url)
     if response.status_code == 200:
-        temp_file_path = 'pages/temp_document.pdf'
+        temp_file_path = 'streamlit/pages/temp_document.pdf'
         with open(temp_file_path, 'wb') as f:
             f.write(response.content)
         return temp_file_path

@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-API_BASE_URL = "http://localhost:8000"  # Your FastAPI base URL
+API_BASE_URL = "http://fastapi:8000" 
 
 
 # Display welcome message

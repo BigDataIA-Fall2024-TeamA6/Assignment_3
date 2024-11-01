@@ -4,10 +4,13 @@ import requests
 import base64
 from io import BytesIO
 from PIL import Image
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.set_page_config(
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 API_BASE_URL = "http://localhost:8000"  # Your FastAPI base URL
@@ -106,10 +109,10 @@ st.markdown("""
 # Function to get image from FastAPI
 def load_image_from_fastapi(image_key):
     try:
-        print(f"Requesting image with key: {image_key}")  # Debugging log
+        # print(f"Requesting image with key: {image_key}")  # Debugging log
         response = requests.get(f"{API_BASE_URL}/fetch-image/{image_key}")
-        print(f"Response status: {response.status_code}")  # Log the response status
-        print(f"Response content: {response.text}")
+        # print(f"Response status: {response.status_code}")  # Log the response status
+        # print(f"Response content: {response.text}")
         response.raise_for_status()
         image_base64 = response.json().get("image_base64")
         img = Image.open(BytesIO(base64.b64decode(image_base64)))
@@ -166,7 +169,6 @@ def get_nvidia_summary(title, description):
         "seed": 0,
         "stream": False
     }
-
     try:
         response = requests.post(NVIDIA_API_URL, json=payload, headers=headers)
         response.raise_for_status()

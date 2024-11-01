@@ -136,7 +136,7 @@ async def get_image_details(image_key: str):
         base_name = image_key.split('/')[-1].rsplit('.', 1)[0]
 
         # Query the Snowflake database to retrieve title and brief
-        query = "SELECT title, brief FROM test WHERE image_key = %s"
+        query = "SELECT title, pdf_summary FROM research_foundation WHERE pdf_key = %s"
         cursor.execute(query, (base_name,))
         result = cursor.fetchone()
 
@@ -180,7 +180,7 @@ async def fetch_image(image_key: str):
 async def list_images():
     s3 = get_s3_client()
     try:
-        response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="test/")
+        response = s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix="Research-Foundation/")
         if 'Contents' not in response:
             raise HTTPException(status_code=404, detail="No images found in S3 bucket")
 

@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://fastapi:8000"
 
 # Redirect to landing if no image is selected
 if not st.session_state.get('selected_image'):

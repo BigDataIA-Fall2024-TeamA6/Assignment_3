@@ -126,52 +126,82 @@ async def login(user: UserLogin):
 
 
 # API to fetch image metadata from Snowflake
+S3_BASE_URL = "https://bdia-assignment-3.s3.us-east-1.amazonaws.com/"
+
 @app.get("/image-details/{pdf_key:path}")
 async def get_image_details(pdf_key: str):
     try:
+        # Establish a database connection
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Remove the file extension from pdf_key to query Snowflake
-        base_name = pdf_key.split('/')[-1].rsplit('.', 1)[0]
+        # Construct the full image link URL
+        full_image_link = f"{S3_BASE_URL}{pdf_key}"
 
-        # Query the Snowflake database to retrieve title and brief
-        query = "SELECT title, pdf_summary FROM research_foundation WHERE pdf_key = %s"
-        cursor.execute(query, (base_name,))
+        # Query the Snowflake database to retrieve title and pdf_summary where image_link matches
+        query = "SELECT title, pdf_summary, pdf_key FROM research_foundation WHERE image_link = %s"
+        cursor.execute(query, (full_image_link,))
         result = cursor.fetchone()
 
         if result:
-            title, brief = result
-            return {"title": title, "pdf_summary": brief}
+            title, brief, pdf_key_value = result
+            return {"title": title, "pdf_summary": brief, "pdf_key": pdf_key_value}
         else:
+            #logger.warning(f"No details found for image link: {full_image_link}")
             raise HTTPException(status_code=404, detail="Image details not found")
 
     except Exception as e:
+        #logger.error("Error retrieving image details", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving image details: {str(e)}")
 
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # API to fetch image data from S3 and return as base64
 @app.get("/fetch-image/{pdf_key:path}")
 async def fetch_image(pdf_key: str):
     s3 = get_s3_client()
     try:
+        print(pdf_key)
         image_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=pdf_key)
         image_data = image_object['Body'].read()
 
-        # Convert image data to base64
+        # Open the image and check its format
         img = Image.open(BytesIO(image_data))
+        img_format = img.format  # Original format (e.g., PNG, JPEG)
+
+        # Convert CMYK images to RGB to ensure compatibility with PNG or JPEG
+        if img.mode == "CMYK":
+            img = img.convert("RGB")
+
+        # Prepare buffer for image data
         buffered = BytesIO()
-        img.save(buffered, format="PNG")
+        img.save(buffered, format=img_format if img_format in ["PNG", "JPEG"] else "PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-        return {"image_base64": img_base64}
-    
+        return {"image_base64": img_base64, "format": img_format}
+
     except s3.exceptions.NoSuchKey:
-        raise HTTPException(status_code=404, detail=f"Image {pdf_key} not found in S3.")
-    
+        # Load a placeholder image if the original is not found
+        placeholder_key = "Research-Foundation/image-not-available.png"
+        image_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=placeholder_key)
+        image_data = image_object['Body'].read()
+
+        # Open and process the placeholder image
+        img = Image.open(BytesIO(image_data))
+        if img.mode == "CMYK":
+            img = img.convert("RGB")
+
+        img_format = img.format
+        buffered = BytesIO()
+        img.save(buffered, format=img_format if img_format in ["PNG", "JPEG"] else "PNG")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        return {"image_base64": img_base64, "format": img_format}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching image from S3: {str(e)}")
 

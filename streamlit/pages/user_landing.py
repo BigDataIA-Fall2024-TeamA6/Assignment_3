@@ -4,10 +4,13 @@ import requests
 import base64
 from io import BytesIO
 from PIL import Image
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.set_page_config(
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 API_BASE_URL = "http://localhost:8000"  # Your FastAPI base URL
@@ -166,7 +169,6 @@ def get_nvidia_summary(title, description):
         "seed": 0,
         "stream": False
     }
-
     try:
         response = requests.post(NVIDIA_API_URL, json=payload, headers=headers)
         response.raise_for_status()

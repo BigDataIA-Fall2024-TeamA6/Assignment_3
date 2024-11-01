@@ -96,7 +96,7 @@ Assignment_2/
 
 ## Architecture Diagram
 
-![Architecture Diagram](https://github.com/BigDataIA-Fall2024-TeamA6/Assignment_3/architecture_diagram/web_scraping_and_rag_model_pipeline.png)
+![Architecture Diagram](https://github.com/BigDataIA-Fall2024-TeamA6/Assignment_3/blob/main/architecture_diagram/web_scraping_and_rag_model_pipeline.png)
 
 ---
 

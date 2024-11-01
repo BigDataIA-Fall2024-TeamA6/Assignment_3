@@ -129,7 +129,7 @@ def get_image_details_from_fastapi(image_key):
         response = requests.get(f"{API_BASE_URL}/image-details/{image_key}")
         response.raise_for_status()
         details = response.json()
-        return details.get("title"), details.get("brief")
+        return details.get("title"), details.get("pdf_summary")
     except requests.RequestException as e:
         st.error(f"Error fetching image details: {str(e)}")
         return "Untitled", "No description available."

@@ -203,12 +203,18 @@ def main():
                     with st.chat_message(message["role"]):
                         st.markdown(message["content"])
  
+                    # Add each message to the terminal output
+                    st.session_state['terminal_output'] += f"{message['role'].capitalize()}: {message['content']}\n"
+
             if user_input:
                 with st.chat_message("user"):
                     st.markdown(user_input)
                 st.session_state['history'].append({"role": "user", "content": user_input})
                 st.session_state['terminal_output'] += f"User: {user_input}\n"
  
+                # Add user input to the terminal output
+                st.session_state['terminal_output'] += f"User: {user_input}\n"
+
                 with st.chat_message("assistant"):
                     message_placeholder = st.empty()
                     full_response = ""
@@ -223,6 +229,7 @@ def main():
            
             if st.button("Clear Chat"):
                 st.session_state['history'] = []
+                st.session_state['terminal_output'] = "Chat history cleared\n"
                 st.session_state['terminal_output'] = ""
                 st.rerun()
  
@@ -276,6 +283,45 @@ def main():
                         disabled=(st.session_state['notes'] == "")):
                 st.session_state['notes'] = ""
                 st.rerun()
+
+            # Display terminal output in a text area
+            st.text_area("Terminal Output", value=st.session_state['terminal_output'], height=200, key="terminal_display")
+
+            # Add to Notes button
+            if st.button("Add to Notes"):
+                st.session_state['notes'] += st.session_state['terminal_output']
+                st.session_state['terminal_output'] = ""  # Clear the terminal output
+                st.success("Added to notes!")
+                st.rerun() 
+
+            # Display Notes
+            st.text_area("Notes", value=st.session_state['notes'], height=200, key="notes_display", disabled=True)
+
+            # Function to create a download link for the PDF
+            def create_download_link(val, filename):
+                b64 = base64.b64encode(val)  # val looks like b'...'
+                return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{filename}.pdf">Download file</a>'
+
+            # Add a button to save notes to PDF
+            if st.button("Save Notes to PDF"):
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
+                
+                # Split the notes into lines and add them to the PDF
+                for line in st.session_state['notes'].split('\n'):
+                    pdf.cell(0, 10, txt=line, ln=True)
+                
+                # Generate the PDF
+                pdf_output = pdf.output(dest="S").encode("latin-1")
+                
+                # Create a download link
+                html = create_download_link(pdf_output, "my_notes")
+                
+                # Display the download link
+                st.markdown(html, unsafe_allow_html=True)
+
+
  
 if __name__ == "__main__":
     main()

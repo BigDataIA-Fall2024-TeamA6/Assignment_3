@@ -4,7 +4,7 @@ streamlit/__pycache__
 *.env
 a3/
 airflow/logs/
-
+streamlit/vectorstore/*
 
 # Airflow configuration
 airflow.cfg

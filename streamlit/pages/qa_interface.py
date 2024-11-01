@@ -1,4 +1,6 @@
+import base64
 import os
+from fpdf import FPDF
 import requests
 import streamlit as st
 from streamlit_pdf_viewer import pdf_viewer
@@ -19,11 +21,6 @@ from pymilvus import connections
 # # Load environment variables from .env file
 load_dotenv()
 
-st.set_page_config(
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 # # Connect to Zilliz Cloud
 # connections.connect(
 #     uri=os.getenv("ZILLIZ_CLOUD_URI"),
@@ -31,14 +28,18 @@ st.set_page_config(
 #     password=os.getenv("ZILLIZ_CLOUD_PASSWORD")
 # )
 
+ 
 # Set up the page configuration
-st.set_page_config(layout="wide")
+st.set_page_config(
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 # Initialize settings
 def initialize_settings():
     Settings.embed_model = NVIDIAEmbedding(model="nvidia/nv-embedqa-e5-v5", truncate="END")
-    Settings.llm = NVIDIA(model="meta/llama-3.1-405b-instruct")
-    Settings.text_splitter = SentenceSplitter(chunk_size=1000)
+    Settings.llm = NVIDIA(model="meta/llama-3.1-8b-instruct")
+    Settings.text_splitter = SentenceSplitter(chunk_size=600)
 
 # Create index from documents
 def create_index(documents):
@@ -125,8 +126,12 @@ def main():
             st.title("Chat")
             if 'history' not in st.session_state:
                 st.session_state['history'] = []
+            if 'terminal_output' not in st.session_state:
+                st.session_state['terminal_output'] = ""
+            if 'notes' not in st.session_state:
+                st.session_state['notes'] = ""
             
-            query_engine = st.session_state['index'].as_query_engine(similarity_top_k=20, streaming=True)
+            query_engine = st.session_state['index'].as_query_engine(similarity_top_k=10, streaming=True)
 
             user_input = st.chat_input("Enter your query:")
 
@@ -136,12 +141,16 @@ def main():
                 for message in st.session_state['history']:
                     with st.chat_message(message["role"]):
                         st.markdown(message["content"])
+                    # Add each message to the terminal output
+                    st.session_state['terminal_output'] += f"{message['role'].capitalize()}: {message['content']}\n"
 
             if user_input:
                 with st.chat_message("user"):
                     st.markdown(user_input)
                 st.session_state['history'].append({"role": "user", "content": user_input})
-                
+                # Add user input to the terminal output
+                st.session_state['terminal_output'] += f"User: {user_input}\n"
+
                 with st.chat_message("assistant"):
                     message_placeholder = st.empty()
                     full_response = ""
@@ -151,11 +160,52 @@ def main():
                         message_placeholder.markdown(full_response + "▌")
                     message_placeholder.markdown(full_response)
                 st.session_state['history'].append({"role": "assistant", "content": full_response})
+                # Add assistant's response to the terminal output
+                st.session_state['terminal_output'] += f"Assistant: {full_response}\n"
 
             # Add a clear button
             if st.button("Clear Chat"):
                 st.session_state['history'] = []
+                st.session_state['terminal_output'] = "Chat history cleared\n"
                 st.rerun()
+
+            # Display terminal output in a text area
+            st.text_area("Terminal Output", value=st.session_state['terminal_output'], height=200, key="terminal_display")
+
+            # Add to Notes button
+            if st.button("Add to Notes"):
+                st.session_state['notes'] += st.session_state['terminal_output']
+                st.session_state['terminal_output'] = ""  # Clear the terminal output
+                st.success("Added to notes!")
+                st.rerun() 
+
+            # Display Notes
+            st.text_area("Notes", value=st.session_state['notes'], height=200, key="notes_display", disabled=True)
+
+            # Function to create a download link for the PDF
+            def create_download_link(val, filename):
+                b64 = base64.b64encode(val)  # val looks like b'...'
+                return f'<a href="data:application/octet-stream;base64,{b64.decode()}" download="{filename}.pdf">Download file</a>'
+
+            # Add a button to save notes to PDF
+            if st.button("Save Notes to PDF"):
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
+                
+                # Split the notes into lines and add them to the PDF
+                for line in st.session_state['notes'].split('\n'):
+                    pdf.cell(0, 10, txt=line, ln=True)
+                
+                # Generate the PDF
+                pdf_output = pdf.output(dest="S").encode("latin-1")
+                
+                # Create a download link
+                html = create_download_link(pdf_output, "my_notes")
+                
+                # Display the download link
+                st.markdown(html, unsafe_allow_html=True)
+
 
 if __name__ == "__main__":
     main()

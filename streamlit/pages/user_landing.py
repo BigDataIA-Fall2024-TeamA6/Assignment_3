@@ -106,10 +106,10 @@ st.markdown("""
 # Function to get image from FastAPI
 def load_image_from_fastapi(image_key):
     try:
-        print(f"Requesting image with key: {image_key}")  # Debugging log
+        # print(f"Requesting image with key: {image_key}")  # Debugging log
         response = requests.get(f"{API_BASE_URL}/fetch-image/{image_key}")
-        print(f"Response status: {response.status_code}")  # Log the response status
-        print(f"Response content: {response.text}")
+        # print(f"Response status: {response.status_code}")  # Log the response status
+        # print(f"Response content: {response.text}")
         response.raise_for_status()
         image_base64 = response.json().get("image_base64")
         img = Image.open(BytesIO(base64.b64decode(image_base64)))
@@ -126,7 +126,7 @@ def get_image_details_from_fastapi(image_key):
         response = requests.get(f"{API_BASE_URL}/image-details/{image_key}")
         response.raise_for_status()
         details = response.json()
-        return details.get("title"), details.get("brief")
+        return details.get("title"), details.get("pdf_summary")
     except requests.RequestException as e:
         st.error(f"Error fetching image details: {str(e)}")
         return "Untitled", "No description available."

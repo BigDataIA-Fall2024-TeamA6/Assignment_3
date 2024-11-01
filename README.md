@@ -57,33 +57,35 @@ The desired outcome is a user-friendly application that allows users to:
 - **Interactively query documents**: Utilize a multi-modal Retrieval-Augmented Generation (RAG) system powered by Zilliz Cloud and LlamaIndex, providing concise responses based on user inputs.
 - **Search and index research notes**: Incrementally index and search verified research notes for easy future reference.
 ```
----
 
-## File Structure
+## File Structure:
 
-```bash
-Assignment_2/
+Assignment_3/
   ├── airflow/
   │   ├── dags/
-  │   │   └── api_chosen_dag.py     #DAG definition for triggering PDF extractions using PyMuPDF
-  │   │   └── docai_dag.py          #DAG definition for triggering PDF extractions using Google Document AI
+  │   │   └── dag_extract_upload.py     #DAG definition for triggering PDF extractions using  
   │   └── docker-compose.yaml   #Airflow deployment configuration
+  │   └── requirements.txt  
+  ├── architecture_diagram/
+  │   ├── arch_diagram.py
+  ├── db_setup_scripts/
+  │   ├── json_to_s3.py               
+  │   ├── web_scraper.py
   ├── streamlit/
   │   ├── app.py                #Main Streamlit application
   │   ├── pages/
-  │   │   └── admin.py              #Admin page for viewing logs
-  │   │   └── create_user.py        #User creation form
+  │   │   └── qa_interface.py       #Admin page for viewing logs
+  │   │   └── doc_detail.py         #User creation form
   │   │   └── db.py                 #Define db Connections
-  │   │   └── summary.py:           #User summary page to view Log Reports
   │   │   └── user_landing.py       #Main landing page for users
-  │   └── .env                  #Configuration file for API keys and database connection
+  │   └── document_processors.py    
+  │   └── utils.py
+  │   └── app.py
   ├── FastAPI/
-  │   └── main.py               #FastAPI application for PDF extraction and GPT-4 integration
-  │   └── models.py             #FastAPI application for PDF extraction and GPT-4 integration (Change description)
-  ├── diagrams/
-  │   └── architecture_diagram.py   #Python code for generating the system diagram
+  │   └── api.py               #FastAPI application for PDF extraction and GPT-4 integration
+  │   └── models.py             #FastAPI application for PDF extraction and GPT-4 
   ├── poetry.lock               #Poetry dependencies lock file
-  └── README.md                 #Project documentation
+  └── README.md 
 ```
 
 

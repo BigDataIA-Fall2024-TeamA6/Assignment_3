@@ -8,7 +8,7 @@ from llama_index.llms.nvidia import NVIDIA
 
 def set_environment_variables():
     """Set necessary environment variables."""
-    os.environ["NVIDIA_API_KEY"] = os.getenv("NVIDIA_API_KEY")
+    os.environ["NVIDIA_API_KEY"] = os.getenv('NVIDIA_API_KEY')
 
 def get_b64_image_from_content(image_content):
     """Convert image content to base64 encoded string."""
@@ -60,6 +60,8 @@ def describe_image(image_content):
     }
 
     response = requests.post(invoke_url, headers=headers, json=payload)
+    response.raise_for_status()
+    print(response.json())
     return response.json()["choices"][0]['message']['content']
 
 def process_graph_deplot(image_content):
@@ -90,6 +92,7 @@ def process_graph_deplot(image_content):
     }
 
     response = requests.post(invoke_url, headers=headers, json=payload)
+    print(response.json())
     return response.json()["choices"][0]['message']['content']
 
 def extract_text_around_item(text_blocks, bbox, page_height, threshold_percentage=0.1):

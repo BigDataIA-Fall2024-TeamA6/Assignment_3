@@ -106,10 +106,10 @@ st.markdown("""
 # Function to get image from FastAPI
 def load_image_from_fastapi(image_key):
     try:
-        print(f"Requesting image with key: {image_key}")  # Debugging log
+        # print(f"Requesting image with key: {image_key}")  # Debugging log
         response = requests.get(f"{API_BASE_URL}/fetch-image/{image_key}")
-        print(f"Response status: {response.status_code}")  # Log the response status
-        print(f"Response content: {response.text}")
+        # print(f"Response status: {response.status_code}")  # Log the response status
+        # print(f"Response content: {response.text}")
         response.raise_for_status()
         image_base64 = response.json().get("image_base64")
         img = Image.open(BytesIO(base64.b64decode(image_base64)))
@@ -147,7 +147,7 @@ def create_image_with_info(image_base64, title, description):
 # Function to query NVIDIA API for summary
 def get_nvidia_summary(title, description):
     NVIDIA_API_URL = "https://ai.api.nvidia.com/v1/vlm/nvidia/neva-22b"  # Replace with your actual endpoint
-    NVIDIA_API_KEY = "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"  # Replace with your actual API key
+    NVIDIA_API_KEY = os.getenv('NVIDIA_API_KEY')  # Replace with your actual API key
 
     headers = {
         "Authorization": f"Bearer {NVIDIA_API_KEY}",
